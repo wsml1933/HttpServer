@@ -1,148 +1,117 @@
 #include "Dispatcher.h"
 #include <sys/select.h>
+#include <stdio.h>
 
 #define Max 1024
 struct SelectData
 {
-	int maxfd;
-	struct pollfd fds[Max];
+	fd_set readSet;
+	fd_set writeSet;
 };
-static void* pollInit();
-static int pollAdd(struct Channel* channel, struct EventLoop* evLoop);
-static int pollRemove(struct Channel* channel, struct EventLoop* evLoop);
-static int pollModify(struct Channel* channel, struct EventLoop* evLoop);
-static int pollDispatch(struct EventLoop* evLoop, int timeout); // 单位：s
-static int pollClear(struct EventLoop* evLoop);
+static void* selectInit();
+static int selectAdd(struct Channel* channel, struct EventLoop* evLoop);
+static int selectRemove(struct Channel* channel, struct EventLoop* evLoop);
+static int selectModify(struct Channel* channel, struct EventLoop* evLoop);
+static int selectDispatch(struct EventLoop* evLoop, int timeout); // 单位：s
+static int selectClear(struct EventLoop* evLoop);
+static void setFdSet(struct Channel* channel, struct SelectData* data);
+static void clearFdSet(struct Channel* channel, struct SelectData* data);
 
-struct Dispatcher PollDispatcher = {
-	pollInit,
-	pollAdd,
-	pollRemove,
-	pollModify,
-	pollDispatch,
-	pollClear
+struct Dispatcher SelectDispatcher = {
+	selectInit,
+	selectAdd,
+	selectRemove,
+	selectModify,
+	selectDispatch,
+	selectClear
 };
 
-static void* pollInit()
+static void* selectInit()
 {
-	struct PollData* data = (struct PollData*)malloc(sizeof(struct PollData));
-	data->maxfd = 0;
-	for (int i = 0; i < Max; i++)
-	{
-		data->fds[i].fd = -1;
-		data->fds[i].events = 0;
-		data->fds[i].revents = 0;
-	}
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	FD_ZERO(&data->readSet);
+	FD_ZERO(&data->writeSet); //清零
 
 	return data;
 }
 
-static int pollAdd(struct Channel* channel, struct EventLoop* evLoop)
+static void setFdSet(struct Channel* channel, struct SelectData* data)
 {
-	struct PollData* data = (struct PollData*)evLoop->dispatcherData;
-	int events = 0;
 	if (channel->events & ReadEvent)
 	{
-		events |= POLLIN;
+		FD_SET(channel->fd, &data->readSet);
 	}
 	if (channel->events & WriteEvent)
 	{
-		events |= POLLOUT;
+		FD_SET(channel->fd, &data->writeSet);
 	}
-	int i = 0;
-	for (; i < Max; i++)
-	{
-		if (data->fds[i].fd == -1)
-		{
-			data->fds[i].events = events;
-			data->fds[i].fd = channel->fd;
-			data->maxfd = i > data->maxfd ? i : data->maxfd;
-			break;
-		}
-	}
-	if (i >= Max)
-	{
-		return -1;
-	}
-	return 0;
 }
-static int pollRemove(struct Channel* channel, struct EventLoop* evLoop)
+static void clearFdSet(struct Channel* channel, struct SelectData* data)
 {
-	struct PollData* data = (struct PollData*)evLoop->dispatcherData;
-	int i = 0;
-	for (; i < Max; i++)
-	{
-		if (data->fds[i].fd == channel->fd)
-		{
-			data->fds[i].events = 0;
-			data->fds[i].revents = 0;
-			data->fds[i].fd = -1;
-			break;
-		}
-	}
-	if (i >= Max)
-	{
-		return -1;
-	}
-	return 0;
-}
-static int pollModify(struct Channel* channel, struct EventLoop* evLoop)
-{
-	struct PollData* data = (struct PollData*)evLoop->dispatcherData;
-	int events = 0;
 	if (channel->events & ReadEvent)
 	{
-		events |= POLLIN;
+		FD_CLR(channel->fd, &data->readSet);
 	}
 	if (channel->events & WriteEvent)
 	{
-		events |= POLLOUT;
-	}
-	int i = 0;
-	for (; i < Max; i++)
-	{
-		if (data->fds[i].fd == channel->fd)
-		{
-			data->fds[i].events = events;
-			break;
-		}
-	}
-	if (i >= Max)
+		FD_CLR(channel->fd, &data->writeSet);
+	} 
+}
+
+static int selectAdd(struct Channel* channel, struct EventLoop* evLoop)
+{
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	if (channel->fd >= Max)
 	{
 		return -1;
 	}
+	setFdSet(channel, data);
 	return 0;
 }
-static int pollDispatch(struct EventLoop* evLoop, int timeout)
+static int selectRemove(struct Channel* channel, struct EventLoop* evLoop)
 {
-	struct PollData* data = (struct PollData*)evLoop->dispatcherData;
-	int count = poll(data->fds, data->maxfd + 1, timeout * 1000); // +1是因为底层判断时是>,不会包含maxfd
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	clearFdSet(channel, data);
+	return 0;
+}
+static int selectModify(struct Channel* channel, struct EventLoop* evLoop)
+{
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	setFdSet(channel, data);
+	clearFdSet(channel, data);
+	return 0;
+}
+static int selectDispatch(struct EventLoop* evLoop, int timeout)
+{
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct timeval val;
+	val.tv_sec = timeout; // 秒
+	val.tv_usec = 0; // 微秒
+	fd_set rdtmp = data->readSet;
+	fd_set wrtmp = data->writeSet;
+	int count = select(Max, &rdtmp, &wrtmp, NULL, &val); // +1是因为底层判断时是>,不会包含maxfd
 	if (count == -1)
 	{
-		perror("poll");
+		perror("select");
 		exit(0);
 	}
-	for (int i = 0; i <= data->maxfd; i++)
+	for (int i = 0; i <Max; i++)
 	{
-		if (data->fds[i].fd == -1)
+		if (FD_ISSET(i, &rdtmp)) // 读集合的文件标识符被激活了
 		{
-			continue;
+			eventActivate(evLoop, i, ReadEvent);
 		}
 
-		if (data->fds[i].revents & POLLIN)
+		if (FD_ISSET(i, &wrtmp))
 		{
-
-		}
-		if (data->fds[i].revents & POLLOUT)
-		{
-
+			eventActivate(evLoop, i, WriteEvent);
 		}
 	}
 	return 0;
 }
-static int pollClear(struct EventLoop* evLoop)
+static int selectClear(struct EventLoop* evLoop)
 {
-	struct PollData* data = (struct PollData*)evLoop->dispatcherData;
+	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
 	free(data);
 }
 

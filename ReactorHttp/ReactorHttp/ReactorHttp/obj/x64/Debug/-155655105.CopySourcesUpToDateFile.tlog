@@ -1,5 +1,11 @@
 E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\Channel.c|638730047971551263|~/projects/ReactorHttp/|
-E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\ChannelMap.cpp|638730078144182999|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\ChannelMap.cpp|638747074399736534|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\EpollDispatcher.c|638747318530250622|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\EventLoop.c|638605650307253748|~/projects/ReactorHttp/|
 E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\main.cpp|638730023936744604|~/projects/ReactorHttp/|
-E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\Channel.h|638730047982700806|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\PollDispatcher.c|638747337245804142|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\SelectDispatcher.c|638756449292215590|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\Channel.h|638747074389791292|~/projects/ReactorHttp/|
 E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\ChannelMap.h|638730077955023081|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\Dispatcher.h|638747338744064601|~/projects/ReactorHttp/|
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\EventLoop.h|638756449323684032|~/projects/ReactorHttp/|

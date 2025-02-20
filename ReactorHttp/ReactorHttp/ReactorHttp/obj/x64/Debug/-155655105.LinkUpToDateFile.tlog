@@ -1,1 +1,0 @@
-cd /root/projects/ReactorHttp/; g++ -o "/root/projects/ReactorHttp/bin/x64/Debug/ReactorHttp.out" -Wl,--no-undefined -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack /root/projects/ReactorHttp/obj/x64/Debug/Channel.o /root/projects/ReactorHttp/obj/x64/Debug/ChannelMap.o /root/projects/ReactorHttp/obj/x64/Debug/main.o

@@ -7,6 +7,11 @@
   正在编译源:
   Channel.c
   ChannelMap.cpp
+  EpollDispatcher.c
+  EventLoop.c
   main.cpp
+  PollDispatcher.c
+  SelectDispatcher.c
   正在链接对象
-  ReactorHttp.vcxproj -> E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\bin\x64\Debug\ReactorHttp.out
+E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\obj\x64\Debug\SelectDispatcher.o : error : (.data+0x28)：对‘selectClear’未定义的引用
+collect2 : error : 错误：ld 返回 1
