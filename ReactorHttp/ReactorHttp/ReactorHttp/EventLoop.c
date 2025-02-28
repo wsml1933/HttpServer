@@ -1,11 +1,31 @@
 #include "EventLoop.h"
 #include <assert.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 struct EventLoop* eventLoopInit()
 {
     return eventLoopInitEx(NULL);
 }
 
+// 写数据
+void taskWakeup(struct EventLoop* evLoop)
+{
+    const char* msg = "写入数据激活子线程";
+    write(evLoop->socketPair[0], msg, strlen(msg));
+}
+
+// 读数据
+int readLocalMessage(void* arg)
+{
+    struct EventLoop* evLoop = (struct EventLoop*)arg;
+    char buf[256];
+    read(evLoop->socketPair[1], buf, sizeof(buf));
+    return 0;
+}
 struct EventLoop* eventLoopInitEx(const char* threadName)
 {
     struct EventLoop* evLoop = (struct EventLoop*)malloc(sizeof(struct EventLoop));
@@ -19,6 +39,17 @@ struct EventLoop* eventLoopInitEx(const char* threadName)
     evLoop->head = evLoop->tail = NULL;
     // map
     evLoop->channelMap = channelMapInit(128);
+    int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, evLoop->socketPair);
+    if (ret == -1)
+    {
+        perror("socketpair");
+        exit(0);
+    }
+    // 指定规则：evLoop->socketPair[0] 发送数据，evLoop->socketPair[1] 接收数据
+    struct Channel* channel = channelInit(evLoop->socketPair[1], ReadEvent,
+        readLocalMessage, NULL, NULL, evLoop);
+    // channel 添加到任务队列
+    eventLoopAddTask(evLoop, channel, ADD);
     return evLoop;
 }
 
@@ -36,6 +67,7 @@ int eventLoopRun(struct EventLoop* evLoop)
     while (!evLoop->isQuit)
     {
         dispatcher->dispatch(evLoop, 2); // 超时时长 2s
+        eventLoopProcessTask(evLoop);
     }
     return 0;
 }
@@ -91,12 +123,102 @@ int eventLoopAddTask(struct EventLoop* evLoop, struct Channel* channel, int type
     if (evLoop->threadID == pthread_self())
     {
         // 当前子线程
+        eventLoopProcessTask(evLoop);
     }
     else
     {
         // 主线程 -- 告诉子线程处理任务队列中的任务
         // 1.子线程在工作 2.子线程被阻塞了：select，poll，epoll     在evloop中添加一个用于解除阻塞的fd，自己来修改使其解除阻塞
+        taskWakeup(evLoop);
     }
 
+    return 0;
+}
+
+int eventLoopProcessTask(struct EventLoop* evLoop)
+{
+    pthread_mutex_lock(&evLoop->mutex);
+    // 取出头结点
+    struct ChannelElement* head = evLoop->head;
+    while (head != NULL)
+    {
+        struct Channel* channel = head->channel;
+        if (head->type == ADD)
+        {
+            // 添加
+            eventLoopAdd(evLoop, channel);
+        }
+        else if (head->type == DELETE)
+        {
+            // 删除
+            eventLoopRemove(evLoop, channel);
+        }
+        else if (head->type == MODIFY)
+        {
+            // 修改
+            eventLoopModify(evLoop, channel);
+        }
+        struct ChannelElement* tmp = head;
+        head = head->next;
+        free(tmp);
+    }
+    evLoop->head = evLoop->tail = NULL;
+    pthread_mutex_unlock(&evLoop->mutex);
+    return 0;
+}
+
+int eventLoopAdd(struct EventLoop* evLoop, struct Channel* channel)
+{
+    int fd = channel->fd;
+    struct ChannelMap* channelMap = evLoop->channelMap;
+    if (fd >= channelMap->size)
+    {
+        // 没有足够的空间存储键值对 fd - channel ==> 扩容
+        if (!makeMapRoom(channelMap, fd, sizeof(struct Channel*)))
+        {
+            return -1;
+        }
+    }
+    // 找到fd对应的数组元素位置，并存储
+    if (channelMap->list[fd] == NULL)
+    {
+        channelMap->list[fd] = channel;
+        evLoop->dispatcher->add(channel, evLoop);
+    }
+    return 0;
+}
+
+int eventLoopRemove(struct EventLoop* evLoop, struct Channel* channel)
+{
+    int fd = channel->fd;
+    struct ChannelMap* channelMap = evLoop->channelMap;
+    if (fd >= channelMap->size)
+    {
+        return -1;
+    }
+    int ret = evLoop->dispatcher->remove(channel, evLoop);
+    return ret;
+}
+
+int eventLoopModify(struct EventLoop* evLoop, struct Channel* channel)
+{
+    int fd = channel->fd;
+    struct ChannelMap* channelMap = evLoop->channelMap;
+    if (fd >= channelMap->size || channelMap->list[fd]==NULL)
+    {
+        return -1;
+    }
+    int ret = evLoop->dispatcher->modify(channel, evLoop);
+    return 0;
+}
+
+int destroyChannel(struct EventLoop* evLoop, struct Channel* channel)
+{
+    // 删除 channel 和 fd 的对应关系
+    evLoop->channelMap->list[channel->fd] = NULL;
+    // 关闭fd
+    close(channel->fd);
+    // 释放channel
+    free(channel);
     return 0;
 }

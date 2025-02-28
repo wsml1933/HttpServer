@@ -1,6 +1,7 @@
 #include "Dispatcher.h"
 #include <sys/select.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define Max 1024
 struct SelectData
@@ -60,7 +61,7 @@ static void clearFdSet(struct Channel* channel, struct SelectData* data)
 
 static int selectAdd(struct Channel* channel, struct EventLoop* evLoop)
 {
-	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct SelectData* data = (struct SelectData*)evLoop->dispatcherData;
 	if (channel->fd >= Max)
 	{
 		return -1;
@@ -70,20 +71,22 @@ static int selectAdd(struct Channel* channel, struct EventLoop* evLoop)
 }
 static int selectRemove(struct Channel* channel, struct EventLoop* evLoop)
 {
-	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct SelectData* data = (struct SelectData*)evLoop->dispatcherData;
 	clearFdSet(channel, data);
+	// 通过channel释放对应的TcpConnection资源
+	channel->destroyCallback(channel->arg);
 	return 0;
 }
 static int selectModify(struct Channel* channel, struct EventLoop* evLoop)
 {
-	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct SelectData* data = (struct SelectData*)evLoop->dispatcherData;
 	setFdSet(channel, data);
 	clearFdSet(channel, data);
 	return 0;
 }
 static int selectDispatch(struct EventLoop* evLoop, int timeout)
 {
-	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct SelectData* data = (struct SelectData*)evLoop->dispatcherData;
 	struct timeval val;
 	val.tv_sec = timeout; // 秒
 	val.tv_usec = 0; // 微秒
@@ -111,8 +114,9 @@ static int selectDispatch(struct EventLoop* evLoop, int timeout)
 }
 static int selectClear(struct EventLoop* evLoop)
 {
-	struct SelectData* data = (struct SelectData*)malloc(sizeof(struct SelectData));
+	struct SelectData* data = (struct SelectData*)evLoop->dispatcherData;
 	free(data);
+	return 0;
 }
 
 

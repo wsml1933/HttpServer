@@ -9,7 +9,7 @@ extern struct Dispatcher PollDispatcher;
 extern struct Dispatcher SelectDispatcher;
 
 // 处理该节点中的channel的方式
-enum ElementType{ADD, DELECT, MODIFY};
+enum ElementType{ADD, DELETE, MODIFY};
 
 // 定义任务节点
 struct ChannelElement
@@ -18,6 +18,7 @@ struct ChannelElement
 	struct Channel* channel;
 	struct ChannelElement* next;
 };
+struct Dispatcher;
 struct EventLoop
 {
 	bool isQuit;
@@ -32,6 +33,7 @@ struct EventLoop
 	pthread_t threadID;
 	char threadName[32];
 	pthread_mutex_t mutex;
+	int socketPair[2]; // 春初本地通信的fd 通过socketpair初始化
 };
 
 // 初始化
@@ -43,3 +45,12 @@ int eventLoopRun(struct EventLoop* evLoop);
 int eventActivate(struct EventLoop* evLoop, int fd, int event);
 // 添加任务到任务队列
 int eventLoopAddTask(struct EventLoop* evLoop, struct Channel* channel, int type);
+// 处理任务队列中的任务
+int eventLoopProcessTask(struct EventLoop* evLoop);
+// 处理dispathcer中的节点
+int eventLoopAdd(struct EventLoop* evLoop, struct Channel* channel);
+int eventLoopRemove(struct EventLoop* evLoop, struct Channel* channel);
+int eventLoopModify(struct EventLoop* evLoop, struct Channel* channel);
+// 释放channel
+int destroyChannel(struct EventLoop* evLoop, struct Channel* channel);
+

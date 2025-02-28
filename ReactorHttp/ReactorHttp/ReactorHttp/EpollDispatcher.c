@@ -1,5 +1,8 @@
 #include "Dispatcher.h"
 #include <sys/epoll.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define Max 520
 struct EpollData
@@ -74,6 +77,8 @@ static int epollRemove(struct Channel* channel, struct EventLoop* evLoop)
 		perror("epoll_ctl delete");
 		exit(0);
 	}
+	// 通过channel释放对应的TcpConnection资源
+	channel->destroyCallback(channel->arg);
 	return ret;
 }
 static int epollModify(struct Channel* channel, struct EventLoop* evLoop)
@@ -117,6 +122,7 @@ static int epollClear(struct EventLoop* evLoop)
 	free(data->events);
 	close(data->epfd);
 	free(data);
+	return 0;
 }
 
 

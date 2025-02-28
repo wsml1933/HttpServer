@@ -1,17 +1,11 @@
-﻿  正在清理远程项目目录
-  正在验证源
+﻿  正在验证源
   正在将源远程复制到“192.168.204.131”
   正在验证体系结构
   正在验证体系结构
   正在启动远程生成
   正在编译源:
-  Channel.c
-  ChannelMap.cpp
-  EpollDispatcher.c
   EventLoop.c
-  main.cpp
-  PollDispatcher.c
-  SelectDispatcher.c
+  main.c
+  TcpServer.c
   正在链接对象
-E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\obj\x64\Debug\SelectDispatcher.o : error : (.data+0x28)：对‘selectClear’未定义的引用
-collect2 : error : 错误：ld 返回 1
+  ReactorHttp.vcxproj -> E:\learn\workspace\GitHub\HttpServer\ReactorHttp\ReactorHttp\ReactorHttp\bin\x64\Debug\ReactorHttp.out
